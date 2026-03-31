@@ -69,17 +69,22 @@ jobs:
             exit 1
           }
 
-      - name: Find and display installer file
+      - name: Locate installer and verify
+        id: find_installer
         run: |
-          Write-Host "Files in current directory:"
-          Get-ChildItem -Path . -Filter "*.exe" -Recurse | Format-Table FullName, Length
-          $installer = Get-ChildItem -Path . -Filter "Uninstalld_Setup_*.exe" -Recurse | Select-Object -First 1
+          Write-Host "=== All .exe files in workspace ==="
+          Get-ChildItem -Path $env:GITHUB_WORKSPACE -Filter "*.exe" -Recurse -ErrorAction SilentlyContinue | Format-Table FullName, Length
+
+          $installer = Get-ChildItem -Path $env:GITHUB_WORKSPACE -Filter "Uninstalld_Setup_*.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+
           if (-not $installer) {
-            Write-Error "No installer .exe found!"
+            Write-Error "Installer .exe not found anywhere in workspace!"
             exit 1
           }
-          Write-Host "Found installer: $($installer.FullName)"
+
+          Write-Host "=== Found installer: $($installer.FullName) ==="
           echo "INSTALLER_PATH=$($installer.FullName)" >> $env:GITHUB_ENV
+          echo "INSTALLER_NAME=$($installer.Name)" >> $env:GITHUB_ENV
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -88,6 +93,7 @@ jobs:
           name: Uninstall'd ${{ github.ref_name }}
           draft: false
           prerelease: false
+          fail_on_unmatched_files: true
           files: ${{ env.INSTALLER_PATH }}
           body: |
             ## Uninstall'd ${{ github.ref_name }}
@@ -95,7 +101,7 @@ jobs:
             Deep program removal tool for Windows — scans registry, program files, and %TEMP% for every trace of a program.
 
             ### Install
-            1. Download `Uninstalld_Setup_${{ github.ref_name }}.exe` below
+            1. Download `${{ env.INSTALLER_NAME }}` below
             2. Run it (UAC prompt will appear — click Yes)
             3. Launch **Uninstall'd** from the Start Menu or Desktop
 

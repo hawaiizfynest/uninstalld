@@ -19,7 +19,7 @@ SetCompressorDictSize 32
 
 ; General settings
 Name        "${APP_NAME}"
-OutFile     "Uninstalld_Setup_v${APP_VERSION}.exe"
+OutFile     "..\Uninstalld_Setup_v${APP_VERSION}.exe"
 InstallDir  "$PROGRAMFILES64\${APP_NAME}"
 InstallDirRegKey HKLM "Software\${APP_NAME}" "InstallPath"
 RequestExecutionLevel admin
