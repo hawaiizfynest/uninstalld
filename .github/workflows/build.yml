@@ -1,0 +1,80 @@
+name: Build Uninstall'd
+
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Build with PyInstaller
+        run: pyinstaller uninstalld.spec --noconfirm
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: uninstalld-windows
+          path: dist/uninstalld/
+          retention-days: 30
+
+  release:
+    needs: build
+    runs-on: windows-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Build with PyInstaller
+        run: pyinstaller uninstalld.spec --noconfirm
+
+      - name: Install NSIS
+        run: choco install nsis -y
+
+      - name: Build NSIS installer
+        run: |
+          & "C:\Program Files (x86)\NSIS\makensis.exe" installer\setup.nsi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            Uninstalld_Setup_v*.exe
+          body: |
+            ## Uninstall'd ${{ github.ref_name }}
+
+            Deep program removal tool for Windows — scans registry, program files, and %TEMP% for all traces of a program.
+
+            ### Install
+            Download and run `Uninstalld_Setup_*.exe` — requires Windows 10/11, admin rights granted automatically.
+
+            ### What's new
+            See [CHANGELOG.md](CHANGELOG.md) for details.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
