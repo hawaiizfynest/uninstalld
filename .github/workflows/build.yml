@@ -35,7 +35,7 @@ jobs:
           path: dist/uninstalld/
           retention-days: 30
 
-  # ── Release job: only runs when a v* tag is pushed ────────────────────────
+  # ── Release job: only runs when a v* tag is pushed ─────────────────────────
   release:
     needs: build
     runs-on: windows-latest
@@ -61,29 +61,25 @@ jobs:
       - name: Install NSIS via Chocolatey
         run: choco install nsis --yes --no-progress
 
-      - name: Verify NSIS installed
-        run: |
-          if (Test-Path "C:\Program Files (x86)\NSIS\makensis.exe") {
-            Write-Host "NSIS found OK"
-          } else {
-            Write-Error "NSIS not found — install step failed"
-            exit 1
-          }
-
       - name: Build NSIS installer
         run: |
           & "C:\Program Files (x86)\NSIS\makensis.exe" installer\setup.nsi
           if ($LASTEXITCODE -ne 0) {
-            Write-Error "NSIS build failed with exit code $LASTEXITCODE"
+            Write-Error "NSIS failed with exit code $LASTEXITCODE"
             exit 1
           }
 
-      - name: List output files (debug)
-        run: Get-ChildItem *.exe | Format-Table Name, Length
-
-      - name: Get version from tag
-        id: version
-        run: echo "VERSION=$($env:GITHUB_REF_NAME)" >> $env:GITHUB_OUTPUT
+      - name: Find and display installer file
+        run: |
+          Write-Host "Files in current directory:"
+          Get-ChildItem -Path . -Filter "*.exe" -Recurse | Format-Table FullName, Length
+          $installer = Get-ChildItem -Path . -Filter "Uninstalld_Setup_*.exe" -Recurse | Select-Object -First 1
+          if (-not $installer) {
+            Write-Error "No installer .exe found!"
+            exit 1
+          }
+          Write-Host "Found installer: $($installer.FullName)"
+          echo "INSTALLER_PATH=$($installer.FullName)" >> $env:GITHUB_ENV
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -92,8 +88,7 @@ jobs:
           name: Uninstall'd ${{ github.ref_name }}
           draft: false
           prerelease: false
-          fail_on_unmatched_files: true
-          files: Uninstalld_Setup_*.exe
+          files: ${{ env.INSTALLER_PATH }}
           body: |
             ## Uninstall'd ${{ github.ref_name }}
 
