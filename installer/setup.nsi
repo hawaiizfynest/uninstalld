@@ -5,9 +5,9 @@
 
 !define APP_NAME      "Uninstall'd"
 !define APP_EXE       "uninstalld.exe"
-!define APP_VERSION   "1.0.0"
+!define APP_VERSION   "1.0.2"
 !define APP_PUBLISHER "Uninstall'd"
-!define APP_URL       "https://github.com/uninstalld/uninstalld"
+!define APP_URL       "https://github.com/hawaiizfynest/uninstalld"
 
 ; Compression
 SetCompressor /SOLID lzma

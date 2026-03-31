@@ -9,6 +9,7 @@ on:
     branches: [ main ]
 
 jobs:
+  # ── Build job: runs on every push and PR ───────────────────────────────────
   build:
     runs-on: windows-latest
 
@@ -16,65 +17,96 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Install dependencies
+      - name: Install Python dependencies
         run: pip install -r requirements.txt
 
-      - name: Build with PyInstaller
-        run: pyinstaller uninstalld.spec --noconfirm
+      - name: Build executable with PyInstaller
+        run: python -m PyInstaller uninstalld.spec --noconfirm
 
-      - name: Upload build artifact
+      - name: Upload portable exe as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: uninstalld-windows
+          name: uninstalld-windows-portable
           path: dist/uninstalld/
           retention-days: 30
 
+  # ── Release job: only runs when a v* tag is pushed ────────────────────────
   release:
     needs: build
     runs-on: windows-latest
     if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Install dependencies
+      - name: Install Python dependencies
         run: pip install -r requirements.txt
 
-      - name: Build with PyInstaller
-        run: pyinstaller uninstalld.spec --noconfirm
+      - name: Build executable with PyInstaller
+        run: python -m PyInstaller uninstalld.spec --noconfirm
 
-      - name: Install NSIS
-        run: choco install nsis -y
+      - name: Install NSIS via Chocolatey
+        run: choco install nsis --yes --no-progress
+
+      - name: Verify NSIS installed
+        run: |
+          if (Test-Path "C:\Program Files (x86)\NSIS\makensis.exe") {
+            Write-Host "NSIS found OK"
+          } else {
+            Write-Error "NSIS not found — install step failed"
+            exit 1
+          }
 
       - name: Build NSIS installer
         run: |
           & "C:\Program Files (x86)\NSIS\makensis.exe" installer\setup.nsi
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "NSIS build failed with exit code $LASTEXITCODE"
+            exit 1
+          }
+
+      - name: List output files (debug)
+        run: Get-ChildItem *.exe | Format-Table Name, Length
+
+      - name: Get version from tag
+        id: version
+        run: echo "VERSION=$($env:GITHUB_REF_NAME)" >> $env:GITHUB_OUTPUT
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            Uninstalld_Setup_v*.exe
+          tag_name: ${{ github.ref_name }}
+          name: Uninstall'd ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          fail_on_unmatched_files: true
+          files: Uninstalld_Setup_*.exe
           body: |
             ## Uninstall'd ${{ github.ref_name }}
 
-            Deep program removal tool for Windows — scans registry, program files, and %TEMP% for all traces of a program.
+            Deep program removal tool for Windows — scans registry, program files, and %TEMP% for every trace of a program.
 
             ### Install
-            Download and run `Uninstalld_Setup_*.exe` — requires Windows 10/11, admin rights granted automatically.
+            1. Download `Uninstalld_Setup_${{ github.ref_name }}.exe` below
+            2. Run it (UAC prompt will appear — click Yes)
+            3. Launch **Uninstall'd** from the Start Menu or Desktop
 
-            ### What's new
-            See [CHANGELOG.md](CHANGELOG.md) for details.
+            **Requirements:** Windows 10 or 11 (64-bit)
+
+            ### What's in this release
+            See the [Changelog](https://github.com/hawaiizfynest/uninstalld#changelog) for full details.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
