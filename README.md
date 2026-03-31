@@ -6,13 +6,20 @@
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-blue)
 ![Python](https://img.shields.io/badge/python-3.10%2B-yellow)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Version](https://img.shields.io/badge/version-1.0.1-red)
+![Version](https://img.shields.io/badge/version-1.0.2-red)
 
 Uninstall'd scans your **registry**, **program files**, and **%TEMP%** folder to find and remove every last trace of a program — not just what the stock uninstaller cleans up. It also lets you **move installations between drives** and **back up and restore your registry** before making any changes.
 
 ---
 
-## What's New in v1.0.1
+## What's New in v1.0.2
+
+### 🐛 Extraction Fix
+The project zip previously contained a folder literally named `{src,assets,installer}` — a side effect of Linux brace expansion during packaging. Windows forbids `{`, `,`, and `}` in path names, causing extraction to fail with a *"path component can't contain control characters"* error. This is fixed in v1.0.2. The zip is now built using explicit file paths so this cannot happen again.
+
+---
+
+## Changes in v1.0.1
 
 ### 🛡️ Registry Backup Prompt
 Before **any** destructive action — deletion or drive move — a mandatory prompt now appears asking how you want to proceed:
@@ -61,7 +68,7 @@ After scanning, a **"📦 Move to Drive..."** button appears when an install loc
 Download the latest installer from [Releases](https://github.com/hawaiizfynest/uninstalld/releases):
 
 ```
-Uninstalld_Setup_v1.0.1.exe
+Uninstalld_Setup_v1.0.2.exe
 ```
 
 - Installs to `C:\Program Files\Uninstall'd\`
@@ -109,7 +116,25 @@ To restore, click **🔄 Restore Registry** in the header, pick a backup from th
 | PyInstaller | 5.13+ | `pip install pyinstaller` |
 | NSIS | 3.x | [nsis.sourceforge.io](https://nsis.sourceforge.io) |
 
-### One-click build
+> **PATH note:** After installing Python, pip may warn that a Scripts directory like
+> `C:\Users\<you>\AppData\Roaming\Python\Python3xx\Scripts` is not on PATH.
+> Fix it by opening **Edit the system environment variables → Environment Variables →
+> User variables → Path → New** and pasting that path in. Restart your terminal afterwards.
+
+### One-click build with `build.bat`
+
+`build.bat` handles the entire process in four steps:
+
+```
+1. Checks that Python is installed and on PATH
+2. Runs:  pip install PyQt6 pyinstaller
+3. Runs:  pyinstaller uninstalld.spec --noconfirm
+          → outputs dist\uninstalld\uninstalld.exe
+4. Detects NSIS and runs:  makensis installer\setup.nsi
+          → outputs Uninstalld_Setup_v1.0.2.exe
+```
+
+To use it:
 
 ```bat
 git clone https://github.com/hawaiizfynest/uninstalld.git
@@ -117,7 +142,17 @@ cd uninstalld
 build.bat
 ```
 
-### Executable only (no installer)
+If NSIS is not installed, `build.bat` skips step 4, prints a warning, and exits with the
+portable `.exe` ready at `dist\uninstalld\uninstalld.exe`. You can run the NSIS step
+manually at any time:
+
+```bat
+"C:\Program Files (x86)\NSIS\makensis.exe" installer\setup.nsi
+```
+
+### Executable only (no `build.bat`)
+
+If you just want the `.exe` without the full script:
 
 ```bat
 pip install -r requirements.txt
@@ -157,8 +192,8 @@ uninstalld/
 Push a version tag — GitHub Actions builds and publishes the installer automatically:
 
 ```bash
-git tag v1.0.1
-git push origin v1.0.1
+git tag v1.0.2
+git push origin v1.0.2
 ```
 
 ---
@@ -170,6 +205,11 @@ Uninstall'd **permanently deletes** registry keys and files. The backup prompt e
 ---
 
 ## Changelog
+
+### v1.0.2
+- Fixed illegal folder name `{src,assets,installer}` being included in the project zip
+- Windows was unable to extract the archive due to `{`, `,`, `}` being forbidden path characters
+- Rebuilt zip using explicit file paths to prevent this from recurring
 
 ### v1.0.1
 - Added mandatory registry backup prompt before all destructive actions
